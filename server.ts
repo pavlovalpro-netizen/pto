@@ -291,6 +291,33 @@ async function startServer() {
     }
   });
 
+  // Удаление секции (Только если нет привязанных задач)
+  app.post('/api/sections/delete', (req, res) => {
+    try {
+      const { sectionId } = req.body;
+      if (!sectionId) return res.status(400).json({ error: 'ID секции не предоставлен' });
+
+      const state = ServerDB.get();
+
+      // Проверить, есть ли задачи у этой секции
+      const hasTasks = state.tasks.some((t) => t.location && t.location.sectionId === sectionId);
+
+      if (hasTasks) {
+        return res.status(400).json({
+          error: 'Нельзя удалить эту секцию, так как к ней привязаны задачи в шахматке!'
+        });
+      }
+
+      // Удаляем секцию
+      state.sections = state.sections.filter((s) => s.id !== sectionId);
+
+      ServerDB.save(state);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 5. РУЧНАЯ КОРРЕКТИРОВКА РАЗМЕТКИ ПОМЕЩЕНИЙ
   // Обновление конкретного помещения (переименование/тип)
   app.post('/api/geometry/room/update', (req, res) => {
