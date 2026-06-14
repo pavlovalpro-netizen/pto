@@ -16,7 +16,7 @@ import {
   CheckCircle, 
   X, 
   FileText, 
-  AlertTriangle, 
+  TriangleAlert, 
   HelpCircle, 
   LayoutGrid, 
   TrendingUp, 
@@ -641,7 +641,7 @@ export default function TaskListTab({
           {showBulkDeleteConfirm && (
             <div id="bulk_delete_confirmation_box" className="p-4 bg-rose-950/20 border border-rose-500/20 rounded-xl space-y-3 animate-fadeIn">
               <div className="flex items-start gap-2.5 text-rose-300">
-                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400 animate-bounce" />
+                <TriangleAlert className="w-5 h-5 shrink-0 mt-0.5 text-rose-400 animate-bounce" />
                 <div className="space-y-1">
                   <h5 className="text-xs font-bold uppercase tracking-wider font-mono">Внимание: Безвозвратное удаление!</h5>
                   <p className="text-[11px] text-gray-300 leading-relaxed">

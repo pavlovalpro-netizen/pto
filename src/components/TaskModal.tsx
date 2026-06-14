@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Task, TaskChecklistItem, TaskComment, User, ALL_ROOM_TYPES, RoomType } from '../types.ts';
-import { X, Send, Link2, AlertTriangle, ArrowRight, CornerDownRight, Layers, User as UserIcon, Calendar, CheckSquare, MessageSquare, ArrowUpDown, Trash2, ShieldAlert } from 'lucide-react';
+import { X, Send, Link2, TriangleAlert, ArrowRight, CornerDownRight, Layers, User as UserIcon, Calendar, CheckSquare, MessageSquare, ArrowUpDown, Trash2, ShieldAlert } from 'lucide-react';
 
 interface TaskModalProps {
   task: Task;
@@ -406,7 +406,7 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
           {/* Предупреждение / Ошибки */}
           {errorMsg && (
             <div id="task_modal_error_alert" className="bg-[#1a140d] border border-orange-500/20 p-4 rounded-lg text-orange-300 text-xs font-mono flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
+              <TriangleAlert className="w-5 h-5 text-orange-400 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -625,7 +625,7 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
             {status === 5 && (
               <div id="tech_comment_input_wrapper" className="space-y-1.5 col-span-1 md:col-span-3 bg-[#2a1318] p-4 border border-rose-500/20 rounded-lg">
                 <label className="text-xs font-bold text-rose-400 uppercase font-mono flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4 text-rose-400" />
+                  <TriangleAlert className="w-4 h-4 text-rose-400" />
                   Текст замечания Технадзора (Обязательно для сохранения!)
                 </label>
                 <textarea

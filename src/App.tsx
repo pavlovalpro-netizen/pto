@@ -27,7 +27,7 @@ import {
   Plus, 
   Copy, 
   Check, 
-  AlertTriangle,
+  TriangleAlert,
   ExternalLink,
   ShieldCheck,
   UserCheck,
@@ -860,7 +860,7 @@ export default function App() {
                     className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900 border border-rose-500/30 text-rose-300 text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0"
                     title="Очистить все заведенные объекты, дома и задачи для тестирования с чистого листа"
                   >
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    <TriangleAlert className="w-3.5 h-3.5 text-rose-400" />
                     <span>Очистить Базу</span>
                   </button>
                 ) : (
@@ -1017,7 +1017,7 @@ export default function App() {
       {errorMsg && (
         <div className="max-w-7xl mx-auto p-4 px-6 sm:px-8 mt-4">
           <div className="bg-rose-950/40 border border-rose-500/20 p-4 rounded text-rose-300 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500" />
+            <TriangleAlert className="w-5 h-5 shrink-0 text-rose-500" />
             <span>{errorMsg}</span>
           </div>
         </div>
@@ -1387,7 +1387,7 @@ export default function App() {
           </>
         ) : (
           <div className="p-12 text-center bg-[#161b22] border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center">
-            <AlertTriangle className="w-8 h-8 text-rose-500 mb-2" />
+            <TriangleAlert className="w-8 h-8 text-rose-500 mb-2" />
             <h3 className="font-bold text-white">Ошибка авторизации в ПТО</h3>
             <p className="text-xs text-gray-400 mt-1">Доступ заблокирован. Пожалуйста, обратитесь к администратору или воспользуйтесь Ссылкой-Приглашением.</p>
           </div>
@@ -1526,7 +1526,7 @@ export default function App() {
           <div className="w-full max-w-md bg-[#161b22] border border-rose-500/20 rounded-2xl shadow-2xl p-6 space-y-5">
             <div className="flex items-start gap-3">
               <div className="p-2.5 bg-rose-500/10 rounded-xl text-rose-500 border border-rose-500/20 shrink-0">
-                <AlertTriangle className="w-6 h-6" />
+                <TriangleAlert className="w-6 h-6" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
