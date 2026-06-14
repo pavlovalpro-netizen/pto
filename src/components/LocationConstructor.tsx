@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { ConstructionObject, House, Section, RoomType, ALL_ROOM_TYPES, Room } from '../types.ts';
-import { Pencil, Trash2, Plus, Check, Settings, Layout, KeySquare, ChevronDown, ChevronRight, FileSpreadsheet, Building2, HelpCircle } from 'lucide-react';
+import { Pencil, Trash2, Plus, Check, Settings, Layout, ChevronDown, ChevronRight, Building2, HelpCircle } from 'lucide-react';
 
 interface LocationConstructorProps {
   objects: ConstructionObject[];
@@ -80,7 +80,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
   const [isCreatingHouse, setIsCreatingHouse] = useState<boolean>(false);
 
   // Для ручной корректировки
-  const [activeSectionId, setActiveSectionId] = useState<string>('');
+  const [activeSectionId, setActiveSectionId] = useState<string>(sections[0]?.id || '');
   const [expandedFloor, setExpandedFloor] = useState<number | null>(null);
   
   // Редактирование помещения в реальном времени
@@ -99,21 +99,24 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
   const [deletingObjectId, setDeletingObjectId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
 
-  const activeSection = sections.find((s) => s.id === activeSectionId);
-
-  // Синхронизация при изменении / сбросе справочника
+  // ---- СИНХРОНИЗАЦИЯ И ХУКИ (ПЕРЕНЕСЕНЫ НАВЕРХ) ----
+  
+  // Синхронизация при изменении / сбросе справочника объектов
   React.useEffect(() => {
-    if (!objects.some((o) => o.id === selectedObjectId)) {
+    if (objects.length > 0 && !objects.some((o) => o.id === selectedObjectId)) {
       setSelectedObjectId(objects[0]?.id || '');
     }
   }, [objects, selectedObjectId]);
 
+  // Синхронизация строений (домов) при смене ЖК
   React.useEffect(() => {
     const filtered = houses.filter((h) => h.objectId === selectedObjectId);
-    if (!filtered.some((h) => h.id === selectedHouseId)) {
+    if (filtered.length > 0 && !filtered.some((h) => h.id === selectedHouseId)) {
       setSelectedHouseId(filtered[0]?.id || '');
     }
   }, [houses, selectedObjectId, selectedHouseId]);
+
+  const activeSection = sections.find((s) => s.id === activeSectionId);
 
   // Создать Объект
   const handleCreateObject = async () => {
@@ -208,7 +211,6 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
   const handleAddTypeToRule = (ruleId: string, type: RoomType) => {
     setRules(rules.map((r) => {
       if (r.id !== ruleId) return r;
-      // Если уже есть, ничего
       if (r.compositions.some((c) => c.type === type)) return r;
       return {
         ...r,
@@ -280,9 +282,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
     }
   };
 
-  // ---- РУЧНАЯ КОРРЕКТИРОВКА РЕЖИМ ----
-
-  // Изменить имя/тип комнаты в инпуте
+  // ---- РУЧНАЯ КОРРЕКТИРОВКА ----
   const handleStartEditRoom = (room: Room) => {
     setEditingRoomId(room.id);
     setEditingRoomName(room.name);
@@ -473,7 +473,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                       value={selectedHouseId}
                       onChange={(e) => setSelectedHouseId(e.target.value)}
                       disabled={!selectedObjectId}
-                      className="w-full text-xs px-2.5 py-2 bg-white border border-slate-300 rounded-lg text-slate-805 disabled:bg-slate-100"
+                      className="w-full text-xs px-2.5 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 disabled:bg-slate-100"
                     >
                       <option value="">-- Выбрать Дом --</option>
                       {filteredHouses.map((h) => (
@@ -584,14 +584,14 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                       type="number"
                       value={rule.minFloor}
                       onChange={(e) => handleRuleFloorChange(rule.id, 'minFloor', parseInt(e.target.value, 10))}
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-center text-xs font-mono"
+                      className="w-16 px-2 py-1 border border-slate-300 rounded-center text-xs font-mono"
                     />
                     <span className="text-xs font-bold text-slate-600">по</span>
                     <input
                       type="number"
                       value={rule.maxFloor}
                       onChange={(e) => handleRuleFloorChange(rule.id, 'maxFloor', parseInt(e.target.value, 10))}
-                      className="w-16 px-2 py-1 border border-slate-300 rounded text-center text-xs font-mono"
+                      className="w-16 px-2 py-1 border border-slate-300 rounded-center text-xs font-mono"
                     />
                   </div>
 
@@ -689,7 +689,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                disabled={isGenerating}
                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md hover:shadow-lg disabled:bg-slate-400 flex items-center justify-center gap-2"
             >
-               <h3>ОТПРАВИТЬ СЕТКУ В ГЕНЕРАТОР</h3>
+               <span>ОТПРАВИТЬ СЕТКУ В ГЕНЕРАТОР</span>
             </button>
           </div>
 
@@ -698,7 +698,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
         {/* СПРАВОЧНИК И УДАЛЕНИЕ ОБЪЕКТОВ СТРОИТЕЛЬСТВА */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Building2 className="w-5 h-5 text-slate-900 animate-pulse" />
+            <Building2 className="w-5 h-5 text-slate-900" />
             <span className="font-bold text-slate-900 uppercase tracking-tight font-mono text-xs">Справочник Объектов (ЖК)</span>
           </div>
           <p className="text-[11px] text-slate-500 font-mono leading-relaxed">
@@ -707,7 +707,6 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
 
           <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto pr-1">
             {objects.map((o) => {
-              // Посчитать связанные дома и секции
               const objHouses = houses.filter((h) => h.objectId === o.id);
               const objHouseIds = objHouses.map((h) => h.id);
               const isLocked = sections.some((s) => objHouseIds.includes(s.houseId));
@@ -728,7 +727,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                       isLocked 
                       ? 'text-slate-200 cursor-not-allowed bg-slate-50' 
                       : deletingObjectId === o.id
-                        ? 'text-white bg-rose-600 animate-pulse'
+                        ? 'text-white bg-rose-600'
                         : 'text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50'
                     }`}
                     title={isLocked ? 'Объект уже размечен в шахматке' : deletingObjectId === o.id ? 'Нажмите повторно для удаления!' : 'Удалить пустой объект'}
@@ -744,7 +743,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
 
       </div>
 
-      {/* ПРАВАЯ ЧАСТЬ: РУЧНАЯ КОРРЕКТИРОВКА РАЗМЕТКИ (МАНДАТОРНАЯ) */}
+      {/* ПРАВАЯ ЧАСТЬ: РУЧНАЯ КОРРЕКТИРОВКА РАЗМЕТКИ */}
       <div className="lg:col-span-6 space-y-6">
         
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
@@ -790,7 +789,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
 
               <div className="divide-y divide-slate-150 border border-slate-200 rounded-xl overflow-hidden max-h-[600px] overflow-y-auto">
                 {[...activeSection.floors]
-                  .sort((a, b) => b.floorNumber - a.floorNumber) // Сверху вниз
+                  .sort((a, b) => b.floorNumber - a.floorNumber)
                   .map((floor) => {
                     const isExpanded = expandedFloor === floor.floorNumber;
 
@@ -835,12 +834,12 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                                   placeholder="кв. 668а, Коридор 2..."
                                   value={newRoomName}
                                   onChange={(e) => setNewRoomName(e.target.value)}
-                                  className="px-2.5 py-1 text-xs border border-slate-350 rounded-md"
-                                />
+                                  className="px-2.5 py-1 text-xs border border-slate-300 rounded-md"
+                                lobby-style-fix="true" />
                                 <select
                                   value={newRoomType}
                                   onChange={(e) => setNewRoomType(e.target.value as RoomType)}
-                                  className="px-2 py-1 text-xs border border-slate-350 rounded-md bg-white"
+                                  className="px-2 py-1 text-xs border border-slate-300 rounded-md bg-white"
                                 >
                                   {ALL_ROOM_TYPES.map((t) => (
                                     <option key={t} value={t}>{t}</option>
@@ -912,7 +911,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
                                             <button
                                               type="button"
                                               onClick={() => handleSaveRoomChanges(floor.floorNumber)}
-                                              className="p-1 px-2.5 bg-slate-900 border border-slate-900 hover:bg-slate-805 text-white rounded-md text-[10px] font-bold uppercase transition-colors flex items-center gap-0.5"
+                                              className="p-1 px-2.5 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white rounded-md text-[10px] font-bold uppercase transition-colors flex items-center gap-0.5"
                                             >
                                               <Check className="w-3 h-3" />
                                               <span>Ок</span>
