@@ -117,6 +117,18 @@ export default function App() {
   const [transferUserId, setTransferUserId] = useState<string>('');
   const [isDeletingUser, setIsDeletingUser] = useState(false);
 
+  // Фильтруем личные задачи (тип 'general'): начальник ПТО не должен видеть личные задачи других инженеров, только свои (и инженеры видят только свои):
+  const visibleTasks = useMemo(() => {
+    return state?.tasks ? state.tasks.filter((task) => {
+      if (task.type === 'general') {
+        const executorEmail = task.executorEmail ? task.executorEmail.toLowerCase() : '';
+        const userEmail = currentUser?.email ? currentUser.email.toLowerCase() : '';
+        return executorEmail && userEmail && executorEmail === userEmail;
+      }
+      return true;
+    }) : [];
+  }, [state?.tasks, currentUser]);
+
   // Читаем параметры адреса при инициализации на случай приглашения
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -656,17 +668,7 @@ export default function App() {
   const activeSection = state?.sections[selectedSectionIndex];
   const isDirector = currentUser?.role === 'director';
 
-  // Фильтруем личные задачи (тип 'general'): начальник ПТО не должен видеть личные задачи других инженеров, только свои (и инженеры видят только свои):
-  const visibleTasks = useMemo(() => {
-    return state?.tasks ? state.tasks.filter((task) => {
-      if (task.type === 'general') {
-        const executorEmail = task.executorEmail ? task.executorEmail.toLowerCase() : '';
-        const userEmail = currentUser?.email ? currentUser.email.toLowerCase() : '';
-        return executorEmail && userEmail && executorEmail === userEmail;
-      }
-      return true;
-    }) : [];
-  }, [state?.tasks, currentUser]);
+  // Фильтруем личные задачи (тип 'general'): перемещено вверх для предотвращения ошибки React 310
 
   return (
     <div id="pto_layout" className="min-h-screen bg-[#0f1115] flex flex-col font-sans text-gray-300 antialiased">
