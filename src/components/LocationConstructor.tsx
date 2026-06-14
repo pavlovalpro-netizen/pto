@@ -97,6 +97,7 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [deletingObjectId, setDeletingObjectId] = useState<string | null>(null);
+  const [deletingSectionId, setDeletingSectionId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
 
   // ---- СИНХРОНИЗАЦИЯ И ХУКИ (ПЕРЕНЕСЕНЫ НАВЕРХ) ----
@@ -180,6 +181,32 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
       if (!response.ok) throw new Error(data.error || 'Ошибка удаления объекта');
 
       setSuccessMsg('Строительный объект успешно удален из справочника.');
+      onRefresh();
+    } catch (e: any) {
+      setErrorMsg(e.message);
+    }
+  };
+
+  // Удалить Секцию
+  const handleDeleteSection = async (sectionId: string) => {
+    if (deletingSectionId !== sectionId) {
+      setDeletingSectionId(sectionId);
+      setTimeout(() => setDeletingSectionId(null), 5000);
+      return;
+    }
+    setDeletingSectionId(null);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const response = await fetch('/api/sections/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Ошибка удаления секции');
+
+      setSuccessMsg('Секция успешно удалена из шахматки.');
       onRefresh();
     } catch (e: any) {
       setErrorMsg(e.message);
@@ -712,29 +739,60 @@ export default function LocationConstructor({ objects, houses, sections, onRefre
               const isLocked = sections.some((s) => objHouseIds.includes(s.houseId));
 
               return (
-                <div key={o.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
-                  <div>
-                    <span className="font-semibold text-slate-800 block text-xs">{o.name}</span>
-                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                      {isLocked ? '🔒 Используется (Блокировка)' : '🔓 Свободен для удаления'}
-                    </span>
+                <div key={o.id} className="py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800 block text-xs">{o.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        {isLocked ? '🔒 Используется (Блокировка)' : '🔓 Свободен для удаления'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() => handleDeleteObject(o.id)}
+                      className={`p-1.5 rounded transition-all flex items-center justify-center min-w-[75px] gap-1 text-[10px] font-bold ${
+                        isLocked 
+                        ? 'text-slate-200 cursor-not-allowed bg-slate-50' 
+                        : deletingObjectId === o.id
+                          ? 'text-white bg-rose-600'
+                          : 'text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50'
+                      }`}
+                      title={isLocked ? 'Объект уже размечен в шахматке' : deletingObjectId === o.id ? 'Нажмите повторно для удаления!' : 'Удалить пустой объект'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      {deletingObjectId === o.id && <span>Удалить?</span>}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isLocked}
-                    onClick={() => handleDeleteObject(o.id)}
-                    className={`p-1.5 rounded transition-all flex items-center justify-center min-w-[75px] gap-1 text-[10px] font-bold ${
-                      isLocked 
-                      ? 'text-slate-200 cursor-not-allowed bg-slate-50' 
-                      : deletingObjectId === o.id
-                        ? 'text-white bg-rose-600'
-                        : 'text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50'
-                    }`}
-                    title={isLocked ? 'Объект уже размечен в шахматке' : deletingObjectId === o.id ? 'Нажмите повторно для удаления!' : 'Удалить пустой объект'}
-                  >
-                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                    {deletingObjectId === o.id && <span>Удалить?</span>}
-                  </button>
+
+                  {/* Список секций для этого объекта */}
+                  {objHouses.map((h) => {
+                    const houseSections = sections.filter((s) => s.houseId === h.id);
+                    if (houseSections.length === 0) return null;
+                    return (
+                      <div key={h.id} className="pl-3 border-l-2 border-slate-100 ml-1 mt-1 space-y-1.5">
+                        <div className="text-[10px] font-bold text-slate-500 font-mono">{h.name}</div>
+                        {houseSections.map((sec) => (
+                          <div key={sec.id} className="flex items-center justify-between gap-2 bg-slate-50 p-1.5 rounded pr-2 border border-slate-100">
+                            <span className="text-[10px] text-slate-600 font-mono font-medium">{sec.number}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSection(sec.id)}
+                              className={`p-1 rounded transition-all flex items-center justify-center gap-1 text-[9px] font-bold ${
+                                deletingSectionId === sec.id
+                                  ? 'text-white bg-rose-600 px-1.5'
+                                  : 'text-rose-500 hover:text-white hover:bg-rose-600'
+                              }`}
+                              title="Удалить секцию"
+                            >
+                              <Trash2 className="w-3 h-3 shrink-0" />
+                              {deletingSectionId === sec.id && <span>Точно?</span>}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
