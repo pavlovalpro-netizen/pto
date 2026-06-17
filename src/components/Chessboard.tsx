@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Section, WorkType, Task, Room, RoomType } from '../types.ts';
 import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus, Download } from 'lucide-react';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
 interface ChessboardProps {
