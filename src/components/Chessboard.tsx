@@ -196,7 +196,7 @@ export default function Chessboard({ section, workTypes, tasks, allSections, onS
         let val = '';
         if (cellInfo.state === 'not_applicable') val = '—';
         else if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') val = '0';
-        else val = cellInfo.displayStatus.toString();
+        else val = String(cellInfo.displayStatus || '');
         
         rowData[`floor_${fl.floorNumber}`] = val;
         
@@ -250,8 +250,9 @@ export default function Chessboard({ section, workTypes, tasks, allSections, onS
     sheet2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     sheet2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
     
+    const targetType = mode === 'project' ? 'main' : 'reclamation';
     allSections.forEach(sec => {
-      const secTasks = tasks.filter(t => t.location?.sectionId === sec.id && t.type === mode);
+      const secTasks = tasks.filter(t => t.location?.sectionId === sec.id && t.type === targetType);
       
       sheet2.addRow({
         sectionName: sec.number,
