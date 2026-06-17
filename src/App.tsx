@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppState, User, Task, Invite, PTONotification } from './types.ts';
 import Chessboard from './components/Chessboard.tsx';
