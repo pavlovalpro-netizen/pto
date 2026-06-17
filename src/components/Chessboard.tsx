@@ -5,17 +5,20 @@
 
 import React, { useState } from 'react';
 import { Section, WorkType, Task, Room, RoomType } from '../types.ts';
-import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus } from 'lucide-react';
+import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus, Download } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface ChessboardProps {
   section: Section;
   workTypes: WorkType[];
   tasks: Task[];
+  allSections: Section[];
   onSelectTask: (task: Task) => void;
   onOpenMassTaskForm?: () => void;
 }
 
-export default function Chessboard({ section, workTypes, tasks, onSelectTask, onOpenMassTaskForm }: ChessboardProps) {
+export default function Chessboard({ section, workTypes, tasks, allSections, onSelectTask, onOpenMassTaskForm }: ChessboardProps) {
   // Режим отображения: 'project' (Основная ИД) или 'reclamation' (Рекламации)
   const [mode, setMode] = useState<'project' | 'reclamation'>('project');
   
@@ -70,30 +73,28 @@ export default function Chessboard({ section, workTypes, tasks, onSelectTask, on
 
     // 3. Вычисляем приоритет критичности статусов задач
     // СТАТУС 5 (Замечания технадзора) -> КРАСНЫЙ (Максимальный приоритет)
-    const hasRed = filteredTasks.some((t) => t.status === 5);
-    if (hasRed) {
-      return { state: 'red', count: filteredTasks.filter((t) => t.status === 5).length, totalCount: filteredTasks.length };
+    if (filteredTasks.some((t) => t.status === 5)) {
+      return { state: 'red', displayStatus: 5 };
     }
 
     // СТАТУС 3 (На проверке у Начальника ПТО) -> ОРАНЖЕВЫЙ
-    const hasOrange = filteredTasks.some((t) => t.status === 3);
-    if (hasOrange) {
-      return { state: 'orange', count: filteredTasks.filter((t) => t.status === 3).length, totalCount: filteredTasks.length };
+    if (filteredTasks.some((t) => t.status === 3)) {
+      return { state: 'orange', displayStatus: 3 };
     }
 
-    // СТАТУСЫ 1 (Назначена), 2 (В работе), 6 (На подписании) -> ЖЕЛТЫЙ
-    const hasYellow = filteredTasks.some((t) => [1, 2, 4, 6].includes(t.status));
-    if (hasYellow) {
-      return { state: 'yellow', count: filteredTasks.filter((t) => [1, 2, 4, 6].includes(t.status)).length, totalCount: filteredTasks.length };
+    // СТАТУСЫ 1 (Назначена), 2 (В работе), 4, 6 -> ЖЕЛТЫЙ
+    const yellowTasks = filteredTasks.filter((t) => [1, 2, 4, 6].includes(t.status));
+    if (yellowTasks.length > 0) {
+      const minStatus = Math.min(...yellowTasks.map(t => t.status));
+      return { state: 'yellow', displayStatus: minStatus };
     }
 
     // Если все задачи находятся в статусе 7 (В архиве) -> ЗЕЛЕНЫЙ
-    const allArchived = filteredTasks.length > 0 && filteredTasks.every((t) => t.status === 7);
-    if (allArchived) {
-      return { state: 'green', totalCount: filteredTasks.length };
+    if (filteredTasks.length > 0 && filteredTasks.every((t) => t.status === 7)) {
+      return { state: 'green', displayStatus: 7 };
     }
 
-    return { state: 'untouched', totalCount: filteredTasks.length };
+    return { state: 'untouched', displayStatus: 0 };
   };
 
   const getCellColorClass = (state: string) => {
@@ -167,6 +168,135 @@ export default function Chessboard({ section, workTypes, tasks, onSelectTask, on
     }
   };
 
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    
+    // --- Лист 1: Сводная шахматка (Текущая секция) ---
+    const sheet1 = workbook.addWorksheet(`${section.number} - Шахматка`);
+    
+    // Заголовки (Этажи)
+    const columns1 = [{ header: 'Технологические Работы ПТО', key: 'workType', width: 40 }];
+    sortedFloors.forEach((fl) => {
+      columns1.push({ header: fl.floorNumber === -1 ? 'Подвал' : `${fl.floorNumber} ЭТАЖ`, key: `floor_${fl.floorNumber}`, width: 12 });
+    });
+    sheet1.columns = columns1;
+    
+    // Стили заголовков
+    sheet1.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    sheet1.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Данные
+    workTypes.forEach((wt) => {
+      const rowData: any = { workType: wt.name };
+      const rowColors: any = {};
+      
+      sortedFloors.forEach((fl) => {
+        const cellInfo = getCellStatus(fl.floorNumber, wt);
+        let val = '';
+        if (cellInfo.state === 'not_applicable') val = '—';
+        else if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') val = '0';
+        else val = cellInfo.displayStatus.toString();
+        
+        rowData[`floor_${fl.floorNumber}`] = val;
+        
+        let bgColor = 'FFF8FAFC'; // default / not applicable
+        if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') bgColor = 'FFE2E8F0';
+        else if (cellInfo.state === 'red') bgColor = 'FFE11D48';
+        else if (cellInfo.state === 'orange') bgColor = 'FFF97316';
+        else if (cellInfo.state === 'yellow') bgColor = 'FFFCD34D';
+        else if (cellInfo.state === 'green') bgColor = 'FF059669';
+        
+        rowColors[`floor_${fl.floorNumber}`] = bgColor;
+      });
+      
+      const addedRow = sheet1.addRow(rowData);
+      
+      // Применяем цвета к ячейкам
+      sortedFloors.forEach((fl) => {
+        const colNumber = sheet1.getColumn(`floor_${fl.floorNumber}`)?.number;
+        if (!colNumber) return;
+        const cell = addedRow.getCell(colNumber);
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (rowColors[`floor_${fl.floorNumber}`]) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: rowColors[`floor_${fl.floorNumber}`] }
+          };
+          if (rowColors[`floor_${fl.floorNumber}`] === 'FFE11D48' || rowColors[`floor_${fl.floorNumber}`] === 'FFF97316' || rowColors[`floor_${fl.floorNumber}`] === 'FF059669') {
+            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+          } else {
+             cell.font = { bold: true };
+          }
+        }
+      });
+    });
+
+    // --- Лист 2: Сводка по всем секциям ---
+    const sheet2 = workbook.addWorksheet('Сводка по всем секциям');
+    sheet2.columns = [
+      { header: 'Секция', key: 'sectionName', width: 20 },
+      { header: 'Всего задач', key: 'total', width: 15 },
+      { header: 'Назначено (1)', key: 's1', width: 15 },
+      { header: 'В работе (2)', key: 's2', width: 15 },
+      { header: 'На проверке (3)', key: 's3', width: 15 },
+      { header: 'Технадзор (4)', key: 's4', width: 15 },
+      { header: 'Замечания (5)', key: 's5', width: 15 },
+      { header: 'На подписании (6)', key: 's6', width: 15 },
+      { header: 'В архиве (7)', key: 's7', width: 15 },
+    ];
+    
+    sheet2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
+    
+    allSections.forEach(sec => {
+      const secTasks = tasks.filter(t => t.location?.sectionId === sec.id && t.type === mode);
+      
+      sheet2.addRow({
+        sectionName: sec.number,
+        total: secTasks.length,
+        s1: secTasks.filter(t => t.status === 1).length,
+        s2: secTasks.filter(t => t.status === 2).length,
+        s3: secTasks.filter(t => t.status === 3).length,
+        s4: secTasks.filter(t => t.status === 4).length,
+        s5: secTasks.filter(t => t.status === 5).length,
+        s6: secTasks.filter(t => t.status === 6).length,
+        s7: secTasks.filter(t => t.status === 7).length,
+      });
+    });
+
+    // --- Лист 3: Легенда ---
+    const sheet3 = workbook.addWorksheet('Легенда');
+    sheet3.columns = [
+      { header: 'Цвет', key: 'color', width: 25 },
+      { header: 'Значение', key: 'desc', width: 50 },
+      { header: 'Пример статуса', key: 'stat', width: 20 },
+    ];
+    sheet3.getRow(1).font = { bold: true };
+    
+    const legendData = [
+      { color: 'Красный', desc: 'Замечания технадзора (Макс. приоритет)', stat: '5', hex: 'FFE11D48', fontWhite: true },
+      { color: 'Оранжевый', desc: 'На проверке у ПТО', stat: '3', hex: 'FFF97316', fontWhite: true },
+      { color: 'Желтый', desc: 'Назначена, В работе, На подписании', stat: '1, 2, 4, 6', hex: 'FFFCD34D', fontWhite: false },
+      { color: 'Зеленый', desc: 'В архиве (Готово)', stat: '7', hex: 'FF059669', fontWhite: true },
+      { color: 'Серый', desc: 'Задач нет (не приступали)', stat: '0', hex: 'FFE2E8F0', fontWhite: false },
+    ];
+    
+    legendData.forEach(l => {
+      const row = sheet3.addRow({ color: l.color, desc: l.desc, stat: l.stat });
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: l.hex } };
+      if (l.fontWhite) {
+        row.getCell(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
+      }
+    });
+
+    // Скачивание
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `Шахматка_${section.number}.xlsx`);
+  };
+
   return (
     <div id="chessboard_root" className="space-y-6">
       
@@ -182,9 +312,18 @@ export default function Chessboard({ section, workTypes, tasks, onSelectTask, on
           </div>
         </div>
 
-        {/* Переключатель Проект / Рекламации */}
-        <div id="layer_mode_selector" className="flex items-center gap-2.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
+        <div className="flex items-center gap-3">
           <button
+            onClick={exportToExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-bold transition-all shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Excel
+          </button>
+
+          {/* Переключатель Проект / Рекламации */}
+          <div id="layer_mode_selector" className="flex items-center gap-2.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
+            <button
             type="button"
             onClick={() => setMode('project')}
             className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
@@ -266,18 +405,12 @@ export default function Chessboard({ section, workTypes, tasks, onSelectTask, on
                       {cellInfo.state === 'not_applicable' ? (
                         <span className="text-slate-300 font-bold block">—</span>
                       ) : cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec' ? (
-                        <span className="text-[10px] font-bold block tracking-tight font-mono">0</span>
+                        <span className="text-[10px] font-bold block tracking-tight font-mono text-slate-300">0</span>
                       ) : (
                         <div className="flex flex-col items-center justify-center">
                           <span className="text-xs font-bold block">
-                            {cellInfo.totalCount}
+                            {cellInfo.displayStatus}
                           </span>
-                          {/* Индикация количества замечаний или проверки */}
-                          {cellInfo.count && cellInfo.count > 0 ? (
-                            <span className="text-[9px] bg-black/15 text-white/95 px-0.8 py-0.1 rounded-xs font-mono select-none block mt-0.5 leading-none">
-                              {cellInfo.count}!
-                            </span>
-                          ) : null}
                         </div>
                       )}
                     </td>

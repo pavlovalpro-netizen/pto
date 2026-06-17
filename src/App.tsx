@@ -1265,6 +1265,7 @@ export default function App() {
                         section={activeSection}
                         workTypes={state.workTypes}
                         tasks={visibleTasks}
+                        allSections={state.sections}
                         onSelectTask={(task) => setSelectedTask(task)}
                         onOpenMassTaskForm={() => setShowMassTaskForm(true)}
                       />
