@@ -6,8 +6,6 @@
 import React, { useState } from 'react';
 import { Section, WorkType, Task, Room, RoomType } from '../types.ts';
 import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus, Download } from 'lucide-react';
-import * as ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 
 interface ChessboardProps {
   section: Section;
@@ -168,28 +166,20 @@ export default function Chessboard({ section, workTypes, tasks, allSections, onS
     }
   };
 
-  const exportToExcel = async () => {
-    const workbook = new ExcelJS.Workbook();
-    
-    // --- Лист 1: Сводная шахматка (Текущая секция) ---
-    const sheet1 = workbook.addWorksheet(`${section.number} - Шахматка`);
-    
-    // Заголовки (Этажи)
-    const columns1 = [{ header: 'Технологические Работы ПТО', key: 'workType', width: 40 }];
-    sortedFloors.forEach((fl) => {
-      columns1.push({ header: fl.floorNumber === -1 ? 'Подвал' : `${fl.floorNumber} ЭТАЖ`, key: `floor_${fl.floorNumber}`, width: 12 });
-    });
-    sheet1.columns = columns1;
-    
-    // Стили заголовков
-    sheet1.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    sheet1.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-    sheet1.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  const exportToExcel = () => {
+    let table1HTML = `
+      <table border="1">
+        <thead>
+          <tr>
+            <th style="background-color: #1E293B; color: #FFFFFF; font-weight: bold;">Технологические Работы ПТО</th>
+            ${sortedFloors.map(fl => `<th style="background-color: #1E293B; color: #FFFFFF; font-weight: bold;">${fl.floorNumber === -1 ? 'Подвал' : `${fl.floorNumber} ЭТАЖ`}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+    `;
 
-    // Данные
     workTypes.forEach((wt) => {
-      const rowData: any = { workType: wt.name };
-      const rowColors: any = {};
+      table1HTML += `<tr><td><b>${wt.name}</b></td>`;
       
       sortedFloors.forEach((fl) => {
         const cellInfo = getCellStatus(fl.floorNumber, wt);
@@ -198,104 +188,114 @@ export default function Chessboard({ section, workTypes, tasks, allSections, onS
         else if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') val = '0';
         else val = String(cellInfo.displayStatus || '');
         
-        rowData[`floor_${fl.floorNumber}`] = val;
+        let bgColor = '#F8FAFC';
+        let color = '#000000';
+        if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') { bgColor = '#E2E8F0'; color = '#000000'; }
+        else if (cellInfo.state === 'red') { bgColor = '#E11D48'; color = '#FFFFFF'; }
+        else if (cellInfo.state === 'orange') { bgColor = '#F97316'; color = '#FFFFFF'; }
+        else if (cellInfo.state === 'yellow') { bgColor = '#FCD34D'; color = '#000000'; }
+        else if (cellInfo.state === 'green') { bgColor = '#059669'; color = '#FFFFFF'; }
         
-        let bgColor = 'FFF8FAFC'; // default / not applicable
-        if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') bgColor = 'FFE2E8F0';
-        else if (cellInfo.state === 'red') bgColor = 'FFE11D48';
-        else if (cellInfo.state === 'orange') bgColor = 'FFF97316';
-        else if (cellInfo.state === 'yellow') bgColor = 'FFFCD34D';
-        else if (cellInfo.state === 'green') bgColor = 'FF059669';
-        
-        rowColors[`floor_${fl.floorNumber}`] = bgColor;
+        table1HTML += `<td style="background-color: ${bgColor}; color: ${color}; text-align: center; font-weight: bold;">${val}</td>`;
       });
-      
-      const addedRow = sheet1.addRow(rowData);
-      
-      // Применяем цвета к ячейкам
-      sortedFloors.forEach((fl) => {
-        const colNumber = sheet1.getColumn(`floor_${fl.floorNumber}`)?.number;
-        if (!colNumber) return;
-        const cell = addedRow.getCell(colNumber);
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        if (rowColors[`floor_${fl.floorNumber}`]) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: rowColors[`floor_${fl.floorNumber}`] }
-          };
-          if (rowColors[`floor_${fl.floorNumber}`] === 'FFE11D48' || rowColors[`floor_${fl.floorNumber}`] === 'FFF97316' || rowColors[`floor_${fl.floorNumber}`] === 'FF059669') {
-            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
-          } else {
-             cell.font = { bold: true };
-          }
-        }
-      });
+      table1HTML += `</tr>`;
     });
+    table1HTML += `</tbody></table>`;
 
-    // --- Лист 2: Сводка по всем секциям ---
-    const sheet2 = workbook.addWorksheet('Сводка по всем секциям');
-    sheet2.columns = [
-      { header: 'Секция', key: 'sectionName', width: 20 },
-      { header: 'Всего задач', key: 'total', width: 15 },
-      { header: 'Назначено (1)', key: 's1', width: 15 },
-      { header: 'В работе (2)', key: 's2', width: 15 },
-      { header: 'На проверке (3)', key: 's3', width: 15 },
-      { header: 'Технадзор (4)', key: 's4', width: 15 },
-      { header: 'Замечания (5)', key: 's5', width: 15 },
-      { header: 'На подписании (6)', key: 's6', width: 15 },
-      { header: 'В архиве (7)', key: 's7', width: 15 },
-    ];
-    
-    sheet2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    sheet2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
-    
     const targetType = mode === 'project' ? 'main' : 'reclamation';
+    let table2HTML = `
+      <br><br><h2>Сводка по всем секциям</h2>
+      <table border="1">
+        <thead>
+          <tr style="background-color: #475569; color: #FFFFFF;">
+            <th>Секция</th>
+            <th>Всего задач</th>
+            <th>Назначено (1)</th>
+            <th>В работе (2)</th>
+            <th>На проверке (3)</th>
+            <th>Технадзор (4)</th>
+            <th>Замечания (5)</th>
+            <th>На подписании (6)</th>
+            <th>В архиве (7)</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
     allSections.forEach(sec => {
       const secTasks = tasks.filter(t => t.location?.sectionId === sec.id && t.type === targetType);
-      
-      sheet2.addRow({
-        sectionName: sec.number,
-        total: secTasks.length,
-        s1: secTasks.filter(t => t.status === 1).length,
-        s2: secTasks.filter(t => t.status === 2).length,
-        s3: secTasks.filter(t => t.status === 3).length,
-        s4: secTasks.filter(t => t.status === 4).length,
-        s5: secTasks.filter(t => t.status === 5).length,
-        s6: secTasks.filter(t => t.status === 6).length,
-        s7: secTasks.filter(t => t.status === 7).length,
-      });
+      table2HTML += `
+        <tr>
+          <td>${sec.number}</td>
+          <td>${secTasks.length}</td>
+          <td>${secTasks.filter(t => t.status === 1).length}</td>
+          <td>${secTasks.filter(t => t.status === 2).length}</td>
+          <td>${secTasks.filter(t => t.status === 3).length}</td>
+          <td>${secTasks.filter(t => t.status === 4).length}</td>
+          <td>${secTasks.filter(t => t.status === 5).length}</td>
+          <td>${secTasks.filter(t => t.status === 6).length}</td>
+          <td>${secTasks.filter(t => t.status === 7).length}</td>
+        </tr>
+      `;
     });
+    table2HTML += `</tbody></table>`;
 
-    // --- Лист 3: Легенда ---
-    const sheet3 = workbook.addWorksheet('Легенда');
-    sheet3.columns = [
-      { header: 'Цвет', key: 'color', width: 25 },
-      { header: 'Значение', key: 'desc', width: 50 },
-      { header: 'Пример статуса', key: 'stat', width: 20 },
-    ];
-    sheet3.getRow(1).font = { bold: true };
-    
-    const legendData = [
-      { color: 'Красный', desc: 'Замечания технадзора (Макс. приоритет)', stat: '5', hex: 'FFE11D48', fontWhite: true },
-      { color: 'Оранжевый', desc: 'На проверке у ПТО', stat: '3', hex: 'FFF97316', fontWhite: true },
-      { color: 'Желтый', desc: 'Назначена, В работе, На подписании', stat: '1, 2, 4, 6', hex: 'FFFCD34D', fontWhite: false },
-      { color: 'Зеленый', desc: 'В архиве (Готово)', stat: '7', hex: 'FF059669', fontWhite: true },
-      { color: 'Серый', desc: 'Задач нет (не приступали)', stat: '0', hex: 'FFE2E8F0', fontWhite: false },
-    ];
-    
-    legendData.forEach(l => {
-      const row = sheet3.addRow({ color: l.color, desc: l.desc, stat: l.stat });
-      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: l.hex } };
-      if (l.fontWhite) {
-        row.getCell(1).font = { color: { argb: 'FFFFFFFF' }, bold: true };
-      }
-    });
+    let table3HTML = `
+      <br><br><h2>Легенда</h2>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>Цвет</th>
+            <th>Значение</th>
+            <th>Пример статуса</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="background-color: #E11D48; color: #FFFFFF; font-weight: bold;">Красный</td><td>Замечания технадзора (Макс. приоритет)</td><td>5</td></tr>
+          <tr><td style="background-color: #F97316; color: #FFFFFF; font-weight: bold;">Оранжевый</td><td>На проверке у ПТО</td><td>3</td></tr>
+          <tr><td style="background-color: #FCD34D; color: #000000; font-weight: bold;">Желтый</td><td>Назначена, В работе, На подписании</td><td>1, 2, 4, 6</td></tr>
+          <tr><td style="background-color: #059669; color: #FFFFFF; font-weight: bold;">Зеленый</td><td>В архиве (Готово)</td><td>7</td></tr>
+          <tr><td style="background-color: #E2E8F0; color: #000000; font-weight: bold;">Серый</td><td>Задач нет (не приступали)</td><td>0</td></tr>
+        </tbody>
+      </table>
+    `;
 
-    // Скачивание
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, `Шахматка_${section.number}.xlsx`);
+    const fullHtml = `
+      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charset="utf-8">
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Шахматка</x:Name>
+                  <x:WorksheetOptions>
+                    <x:DisplayGridlines/>
+                  </x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+        </head>
+        <body>
+          ${table1HTML}
+          ${table2HTML}
+          ${table3HTML}
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Шахматка_${section.number}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
