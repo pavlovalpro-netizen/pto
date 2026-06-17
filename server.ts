@@ -1465,9 +1465,9 @@ async function startServer() {
   // 12. ПРИНЯТИЕ ПРИГЛАШЕНИЯ РЕГИСТРАЦИЯ ИНЖЕНЕРА ЧЕРЕЗ ССЫЛКУ-ТОКЕН
   app.post('/api/invites/accept', (req, res) => {
     try {
-      const { token, name, email } = req.body;
-      if (!token || !name || !email) {
-        return res.status(400).json({ error: 'Недостаточно данных для активации ссылки' });
+      const { token, name, email, password } = req.body;
+      if (!token || !name || !email || !password) {
+        return res.status(400).json({ error: 'Недостаточно данных для регистрации (укажите пароль)' });
       }
 
       const state = ServerDB.get();
@@ -1499,6 +1499,7 @@ async function startServer() {
           name,
           email,
           role: 'engineer',
+          password,
         };
         state.users.push(user);
       }
@@ -1532,6 +1533,7 @@ async function startServer() {
           name,
           email,
           role: role === 'director' ? 'director' : 'engineer',
+          password: 'user', // по умолчанию
         };
         state.users.push(usr);
       }
@@ -1768,6 +1770,59 @@ async function startServer() {
       );
 
       ServerDB.save(state);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 20. Авторизация по логину и паролю
+  app.post('/api/auth/login', (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Не указан email или пароль' });
+      }
+
+      const state = ServerDB.get();
+      const user = state.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+      if (!user) {
+        return res.status(401).json({ error: 'Пользователь не найден' });
+      }
+
+      if (user.password !== password) {
+        return res.status(401).json({ error: 'Неверный пароль' });
+      }
+
+      res.json({ success: true, user });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 21. Смена пароля
+  app.post('/api/users/change-password', (req, res) => {
+    try {
+      const { email, oldPassword, newPassword, isMasterAccess } = req.body;
+      if (!email || !newPassword) {
+        return res.status(400).json({ error: 'Недостаточно данных для смены пароля' });
+      }
+
+      const state = ServerDB.get();
+      const user = state.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      if (!isMasterAccess && user.password && user.password !== oldPassword) {
+        return res.status(401).json({ error: 'Неверный старый пароль' });
+      }
+
+      user.password = newPassword;
+      ServerDB.save(state);
+      
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

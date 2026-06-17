@@ -584,6 +584,19 @@ export class ServerDB {
         if (pUser && (pUser.name.includes('А.Л.') || pUser.name === 'Павлов А.Л.' || pUser.name.includes('А. Л.'))) {
           pUser.name = pUser.name.replace('А.Л.', 'М.Н.').replace('А. Л.', 'М.Н.');
         }
+
+        // Автоматически устанавливаем пароль "123456" всем пользователям, у которых его еще нет
+        let updatedPasswords = false;
+        for (const user of this.state.users) {
+          if (!user.password) {
+            user.password = '123456';
+            updatedPasswords = true;
+          }
+        }
+        if (updatedPasswords) {
+          this.save();
+        }
+
         this.initialLoad = true;
         return this.state;
       }
@@ -602,18 +615,21 @@ export class ServerDB {
         name: 'Павлов М.Н. (Начальник ПТО)',
         email: 'pavlov.alpro@gmail.com',// Из метаданных запроса
         role: 'director',
+        password: 'admin',
       },
       {
         id: 'user_engineer1',
         name: 'Иванов И.И. (Инженер ПТО)',
         email: 'engineer1@al-pro.ru',
         role: 'engineer',
+        password: 'user',
       },
       {
         id: 'user_engineer2',
         name: 'Петров П.П. (Инженер ПТО)',
         email: 'engineer2@al-pro.ru',
         role: 'engineer',
+        password: 'user',
       },
     ];
 

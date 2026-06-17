@@ -121,6 +121,7 @@ export interface User {
   name: string;
   email: string;
   role: 'director' | 'engineer';
+  password?: string;
 }
 
 export interface Invite {

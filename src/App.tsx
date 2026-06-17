@@ -82,6 +82,7 @@ export default function App() {
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
@@ -98,8 +99,16 @@ export default function App() {
   // Модалка настроек профиля и компании
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsName, setSettingsName] = useState('');
+
+  // Форма входа
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [settingsEmail, setSettingsEmail] = useState('');
   const [settingsCompany, setSettingsCompany] = useState('');
+  const [settingsOldPassword, setSettingsOldPassword] = useState('');
+  const [settingsNewPassword, setSettingsNewPassword] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
@@ -139,7 +148,7 @@ export default function App() {
   }, []);
 
   // Загрузка состояния приложения
-  const loadState = async (forcedEmail?: string) => {
+  const loadState = async (skipAuth: boolean = false) => {
     try {
       const response = await fetch(`/api/state?_t=${Date.now()}`);
       if (!response.ok) throw new Error('Ошибка связи с сервером ПTO');
@@ -147,34 +156,28 @@ export default function App() {
       const data: AppState = await response.json();
       setState(data);
 
-      // Определяем email активного пользователя
-      const storedEmail = safeLocalStorage.getItem('pto_user_email');
-      const activeEmail = forcedEmail || storedEmail || 'pavlov.alpro@gmail.com';
+      if (!skipAuth) {
+        // Пытаемся восстановить сессию
+        const storedEmail = safeLocalStorage.getItem('pto_auth_email');
+        const storedPwd = safeLocalStorage.getItem('pto_auth_pwd');
 
-      let foundUser = data.users.find(u => u.email.toLowerCase() === activeEmail.toLowerCase());
-      if (!foundUser && activeEmail.toLowerCase() === 'pavlov.alpro@gmail.com') {
-        // дефолтный юзер Начальник ПТО с правильными инициалами
-        foundUser = {
-          id: 'user_pavlov',
-          name: 'Павлов М.Н. (Начальник ПТО)',
-          email: 'pavlov.alpro@gmail.com',
-          role: 'director'
-        };
+      if (storedEmail && storedPwd) {
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: storedEmail, password: storedPwd }),
+        });
+        if (loginRes.ok) {
+          const loginData = await loginRes.json();
+          if (loginData.success && loginData.user) {
+            setCurrentUser(loginData.user);
+          }
+        } else {
+          // Если пароль сменили или удалили
+          safeLocalStorage.setItem('pto_auth_email', '');
+          safeLocalStorage.setItem('pto_auth_pwd', '');
+        }
       }
-
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        safeLocalStorage.setItem('pto_user_email', foundUser.email);
-      } else {
-        // Если вообще ничего не нашли, сбрасываем на Павлова М.Н.
-        const defaultUser = data.users.find(u => u.email === 'pavlov.alpro@gmail.com') || {
-          id: 'user_pavlov',
-          name: 'Павлов М.Н. (Начальник ПТО)',
-          email: 'pavlov.alpro@gmail.com',
-          role: 'director'
-        };
-        setCurrentUser(defaultUser);
-        safeLocalStorage.setItem('pto_user_email', defaultUser.email);
       }
     } catch (e: any) {
       setErrorMsg(e.message);
@@ -381,8 +384,8 @@ export default function App() {
     e.preventDefault();
     setInviteError(null);
 
-    if (!inviteName.trim() || !inviteEmail.trim()) {
-      setInviteError('Пожалуйста, заполните Имя и Email!');
+    if (!inviteName.trim() || !inviteEmail.trim() || !invitePassword.trim()) {
+      setInviteError('Пожалуйста, заполните Имя, Email и придумайте Пароль!');
       return;
     }
 
@@ -394,6 +397,7 @@ export default function App() {
           token: inviteToken,
           name: inviteName,
           email: inviteEmail,
+          password: invitePassword,
         }),
       });
 
@@ -401,7 +405,8 @@ export default function App() {
       if (!response.ok) throw new Error(data.error || 'Ошибка активации ссылки');
 
       setInviteSuccess(true);
-      safeLocalStorage.setItem('pto_user_email', data.user.email);
+      safeLocalStorage.setItem('pto_auth_email', data.user.email);
+      safeLocalStorage.setItem('pto_auth_pwd', invitePassword);
       setCurrentUser(data.user);
       
       // Стираем параметры из строки поиска
@@ -410,7 +415,7 @@ export default function App() {
       setTimeout(() => {
         setInviteToken(null);
         setInviteSuccess(false);
-        loadState(data.user.email);
+        loadState(true);
       }, 1500);
 
     } catch (err: any) {
@@ -442,11 +447,12 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      safeLocalStorage.setItem('pto_user_email', data.user.email);
+      // Мастер-доступ: мы меняем currentUser, но НЕ меняем localStorage
+      // Таким образом, при F5 директор вернется в свой аккаунт
       setCurrentUser(data.user);
       setActiveTab(data.user.role === 'director' ? 'chessboard' : 'tasks');
       setShowUserSwapper(false);
-      await loadState(data.user.email);
+      await loadState(true);
     } catch (err: any) {
       setErrorMsg(err.message);
     }
@@ -479,7 +485,26 @@ export default function App() {
 
       // Обновляем текущего пользователя в стейте и localStorage
       setCurrentUser(userData.user);
-      safeLocalStorage.setItem('pto_user_email', userData.user.email);
+      safeLocalStorage.setItem('pto_auth_email', userData.user.email);
+
+      // Смена пароля (если заполнен новый пароль)
+      if (settingsNewPassword) {
+        const passResp = await fetch('/api/users/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentUser.email,
+            oldPassword: settingsOldPassword,
+            newPassword: settingsNewPassword,
+            isMasterAccess: currentUser.role === 'director'
+          }),
+        });
+        const passData = await passResp.json();
+        if (!passResp.ok) {
+          throw new Error(passData.error || 'Ошибка при изменении пароля');
+        }
+        safeLocalStorage.setItem('pto_auth_pwd', settingsNewPassword);
+      }
 
       // 2. Если мы директор, то сохраняем еще и название компании ПТО
       if (currentUser.role === 'director' && settingsCompany.trim()) {
@@ -495,7 +520,7 @@ export default function App() {
       }
 
       setSettingsSuccess('Данные успешно сохранены!');
-      await loadState(userData.user.email);
+      await loadState(true);
       setTimeout(() => {
         setShowSettingsModal(false);
         setSettingsSuccess(null);
@@ -575,10 +600,92 @@ export default function App() {
       <div id="app_loading_screen" className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0f1115] text-white">
         <RotateCw className="w-10 h-10 animate-spin text-orange-500 mb-4" />
         <h2 className="text-sm font-bold tracking-tight uppercase font-mono text-gray-200">Подключение к системе ПТО...</h2>
-        <p className="text-xs text-gray-400 mt-1 font-mono">ООО "Ал-Про" ➔ Строительный Контроль</p>
+        <p className="text-xs text-gray-400 mt-1 font-mono">{state?.companyName || 'Загрузка данных'} ➔ Строительный Контроль</p>
       </div>
     );
   }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setIsLoggingIn(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+
+      setCurrentUser(data.user);
+      safeLocalStorage.setItem('pto_auth_email', loginEmail);
+      safeLocalStorage.setItem('pto_auth_pwd', loginPassword);
+    } catch (e: any) {
+      setLoginError(e.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // --- ЭКРАН ВХОДА ---
+  if (!currentUser && !inviteToken) {
+    return (
+      <div id="login_screen" className="min-h-screen flex items-center justify-center p-4 bg-[#0f1115] text-[#d1d5db]">
+        <div className="w-full max-w-md bg-[#161b22] border border-white/10 rounded-2xl shadow-2xl p-6.5 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="inline-flex p-3 bg-orange-600 rounded-lg text-white shadow-md shadow-orange-950/30">
+              <Building2 className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight">ПТО Стройконтроль</h2>
+            <p className="text-xs text-slate-400 font-mono">Авторизация в системе</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {loginError && (
+              <p className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono rounded-lg">{loginError}</p>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 uppercase font-mono">Ваш Email</label>
+              <input
+                type="email"
+                required
+                placeholder="email@example.com"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg focus:border-orange-500 outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 uppercase font-mono">Пароль</label>
+              <input
+                type="password"
+                required
+                placeholder="••••••"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg focus:border-orange-500 outline-none"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className={`w-full py-2.5 rounded-lg font-bold text-white transition-all text-xs flex justify-center items-center gap-2 shadow-md ${
+                isLoggingIn ? 'bg-orange-600/50 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-500 shadow-orange-950/20'
+              }`}
+            >
+              {isLoggingIn ? <RotateCw className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 rotate-180" />}
+              <span>Войти в систему</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
 
   // --- ЭКРАН ИНВАЙТА РЕГИСТРАЦИИ (2.2) ---
   if (inviteToken) {
@@ -628,7 +735,7 @@ export default function App() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300 uppercase font-mono">Google Аккаунт (Email)</label>
+                <label className="text-xs font-bold text-slate-300 uppercase font-mono">Ваш Email</label>
                 <input
                   type="email"
                   required
@@ -639,13 +746,25 @@ export default function App() {
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300 uppercase font-mono">Придумайте пароль</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••"
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                  className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg font-mono focus:border-orange-500 outline-none"
+                />
+              </div>
+
               <div className="pt-2">
                 <button
                   type="submit"
                   className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-orange-950/20 flex items-center justify-center gap-1.5"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Пройти Google Авторизацию</span>
+                  <span>Зарегистрироваться в системе</span>
                 </button>
               </div>
             </form>
@@ -736,35 +855,52 @@ export default function App() {
                 </div>
               )}
 
-              {/* Демо-переключатель */}
-              <button
-                id="demo_swapper_btn"
-                type="button"
-                onClick={() => setShowUserSwapper(!showUserSwapper)}
-                className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg shadow-md shadow-orange-950/20 transition-all flex items-center gap-1 shrink-0"
-              >
-                <span>Сменить Роль (Демо)</span>
-              </button>
+              {/* Переключатель аккаунтов (Мастер-доступ Начальника) */}
+              {isDirector && (
+                <button
+                  id="demo_swapper_btn"
+                  type="button"
+                  onClick={() => setShowUserSwapper(!showUserSwapper)}
+                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg shadow-md shadow-orange-950/20 transition-all flex items-center gap-1 shrink-0"
+                >
+                  <span>Войти как инженер</span>
+                </button>
+              )}
 
               {/* Настройки профиля и компании */}
               {currentUser && (
-                <button
-                  id="user_settings_btn"
-                  type="button"
-                  onClick={() => {
-                    setSettingsName(currentUser.name);
-                    setSettingsEmail(currentUser.email);
-                    setSettingsCompany(state?.companyName || 'ООО "Ал-Про"');
-                    setSettingsError(null);
-                    setSettingsSuccess(null);
-                    setShowSettingsModal(true);
-                  }}
-                  className="px-3 py-1.5 bg-[#0d1117] hover:bg-white/5 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0"
-                  title="Настройки профиля и компании"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Настройки</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    id="user_settings_btn"
+                    type="button"
+                    onClick={() => {
+                      setSettingsName(currentUser.name);
+                      setSettingsEmail(currentUser.email);
+                      setSettingsCompany(state?.companyName || 'ООО "Ал-Про"');
+                      setSettingsError(null);
+                      setSettingsSuccess(null);
+                      setShowSettingsModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-[#0d1117] hover:bg-white/5 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                    title="Настройки профиля и компании"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Настройки</span>
+                  </button>
+                  <button
+                    id="logout_btn"
+                    type="button"
+                    onClick={() => {
+                      safeLocalStorage.setItem('pto_auth_email', '');
+                      safeLocalStorage.setItem('pto_auth_pwd', '');
+                      setCurrentUser(null);
+                    }}
+                    className="px-3 py-1.5 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                    title="Выйти из аккаунта"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
 
               {/* Колокольчик уведомлений ПТО */}
@@ -1477,6 +1613,33 @@ export default function App() {
                     value={settingsEmail}
                     onChange={(e) => setSettingsEmail(e.target.value)}
                     className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg font-mono focus:border-orange-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Секция: Смена пароля */}
+              <div className="space-y-3 pt-2 border-t border-white/5">
+                <h4 className="text-[10px] font-bold text-orange-400 uppercase tracking-widest font-mono">Смена пароля (Опционально)</h4>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">Старый пароль</label>
+                  <input
+                    type="password"
+                    placeholder="••••••"
+                    value={settingsOldPassword}
+                    onChange={(e) => setSettingsOldPassword(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg focus:border-orange-500 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase font-mono">Новый пароль</label>
+                  <input
+                    type="password"
+                    placeholder="••••••"
+                    value={settingsNewPassword}
+                    onChange={(e) => setSettingsNewPassword(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-[#0d1117] border border-white/10 text-white rounded-lg focus:border-orange-500 outline-none"
                   />
                 </div>
               </div>
