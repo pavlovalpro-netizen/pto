@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { AppState, User, Task, Invite, PTONotification } from './types.ts';
 import Chessboard from './components/Chessboard.tsx';
@@ -1266,7 +1265,6 @@ export default function App() {
                         section={activeSection}
                         workTypes={state.workTypes}
                         tasks={visibleTasks}
-                        allSections={state.sections}
                         onSelectTask={(task) => setSelectedTask(task)}
                         onOpenMassTaskForm={() => setShowMassTaskForm(true)}
                       />

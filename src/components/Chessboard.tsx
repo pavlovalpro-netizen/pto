@@ -3,21 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// @ts-nocheck
 import React, { useState } from 'react';
 import { Section, WorkType, Task, Room, RoomType } from '../types.ts';
-import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus, Download } from 'lucide-react';
+import { RefreshCw, LayoutGrid, Info, Layers, ToggleLeft, ToggleRight, X, ChevronRight, FileList, Plus } from 'lucide-react';
 
 interface ChessboardProps {
   section: Section;
   workTypes: WorkType[];
   tasks: Task[];
-  allSections: Section[];
   onSelectTask: (task: Task) => void;
   onOpenMassTaskForm?: () => void;
 }
 
-export default function Chessboard({ section, workTypes, tasks, allSections, onSelectTask, onOpenMassTaskForm }: ChessboardProps) {
+export default function Chessboard({ section, workTypes, tasks, onSelectTask, onOpenMassTaskForm }: ChessboardProps) {
   // Режим отображения: 'project' (Основная ИД) или 'reclamation' (Рекламации)
   const [mode, setMode] = useState<'project' | 'reclamation'>('project');
   
@@ -167,165 +165,9 @@ export default function Chessboard({ section, workTypes, tasks, allSections, onS
     }
   };
 
-  const exportToExcel = () => {
-    let table1HTML = `
-      <table border="1">
-        <thead>
-          <tr>
-            <th style="background-color: #1E293B; color: #FFFFFF; font-weight: bold;">Технологические Работы ПТО</th>
-            ${sortedFloors.map(fl => `<th style="background-color: #1E293B; color: #FFFFFF; font-weight: bold;">${fl.floorNumber === -1 ? 'Подвал' : `${fl.floorNumber} ЭТАЖ`}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    workTypes.forEach((wt) => {
-      table1HTML += `<tr><td><b>${wt.name}</b></td>`;
-      
-      sortedFloors.forEach((fl) => {
-        const cellInfo = getCellStatus(fl.floorNumber, wt);
-        let val = '';
-        if (cellInfo.state === 'not_applicable') val = '—';
-        else if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') val = '0';
-        else val = String(cellInfo.displayStatus || '');
-        
-        let bgColor = '#F8FAFC';
-        let color = '#000000';
-        if (cellInfo.state === 'untouched' || cellInfo.state === 'empty_rec') { bgColor = '#E2E8F0'; color = '#000000'; }
-        else if (cellInfo.state === 'red') { bgColor = '#E11D48'; color = '#FFFFFF'; }
-        else if (cellInfo.state === 'orange') { bgColor = '#F97316'; color = '#FFFFFF'; }
-        else if (cellInfo.state === 'yellow') { bgColor = '#FCD34D'; color = '#000000'; }
-        else if (cellInfo.state === 'green') { bgColor = '#059669'; color = '#FFFFFF'; }
-        
-        table1HTML += `<td style="background-color: ${bgColor}; color: ${color}; text-align: center; font-weight: bold;">${val}</td>`;
-      });
-      table1HTML += `</tr>`;
-    });
-    table1HTML += `</tbody></table>`;
-
-    const targetType = mode === 'project' ? 'main' : 'reclamation';
-    let table2HTML = `
-      <br><br><h2>Сводка по всем секциям</h2>
-      <table border="1">
-        <thead>
-          <tr style="background-color: #475569; color: #FFFFFF;">
-            <th>Секция</th>
-            <th>Всего задач</th>
-            <th>Назначено (1)</th>
-            <th>В работе (2)</th>
-            <th>На проверке (3)</th>
-            <th>Технадзор (4)</th>
-            <th>Замечания (5)</th>
-            <th>На подписании (6)</th>
-            <th>В архиве (7)</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    
-    allSections.forEach(sec => {
-      const secTasks = tasks.filter(t => t.location?.sectionId === sec.id && t.type === targetType);
-      table2HTML += `
-        <tr>
-          <td>${sec.number}</td>
-          <td>${secTasks.length}</td>
-          <td>${secTasks.filter(t => t.status === 1).length}</td>
-          <td>${secTasks.filter(t => t.status === 2).length}</td>
-          <td>${secTasks.filter(t => t.status === 3).length}</td>
-          <td>${secTasks.filter(t => t.status === 4).length}</td>
-          <td>${secTasks.filter(t => t.status === 5).length}</td>
-          <td>${secTasks.filter(t => t.status === 6).length}</td>
-          <td>${secTasks.filter(t => t.status === 7).length}</td>
-        </tr>
-      `;
-    });
-    table2HTML += `</tbody></table>`;
-
-    let table3HTML = `
-      <br><br><h2>Легенда</h2>
-      <table border="1">
-        <thead>
-          <tr>
-            <th>Цвет</th>
-            <th>Значение</th>
-            <th>Пример статуса</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td style="background-color: #E11D48; color: #FFFFFF; font-weight: bold;">Красный</td><td>Замечания технадзора (Макс. приоритет)</td><td>5</td></tr>
-          <tr><td style="background-color: #F97316; color: #FFFFFF; font-weight: bold;">Оранжевый</td><td>На проверке у ПТО</td><td>3</td></tr>
-          <tr><td style="background-color: #FCD34D; color: #000000; font-weight: bold;">Желтый</td><td>Назначена, В работе, На подписании</td><td>1, 2, 4, 6</td></tr>
-          <tr><td style="background-color: #059669; color: #FFFFFF; font-weight: bold;">Зеленый</td><td>В архиве (Готово)</td><td>7</td></tr>
-          <tr><td style="background-color: #E2E8F0; color: #000000; font-weight: bold;">Серый</td><td>Задач нет (не приступали)</td><td>0</td></tr>
-        </tbody>
-      </table>
-    `;
-
-    const fullHtml = `
-      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
-        <head>
-          <meta charset="utf-8">
-          <!--[if gte mso 9]>
-          <xml>
-            <x:ExcelWorkbook>
-              <x:ExcelWorksheets>
-                <x:ExcelWorksheet>
-                  <x:Name>Шахматка</x:Name>
-                  <x:WorksheetOptions>
-                    <x:DisplayGridlines/>
-                  </x:WorksheetOptions>
-                </x:ExcelWorksheet>
-              </x:ExcelWorksheets>
-            </x:ExcelWorkbook>
-          </xml>
-          <![endif]-->
-        </head>
-        <body>
-          ${table1HTML}
-          ${table2HTML}
-          ${table3HTML}
-        </body>
-      </html>
-    `;
-
-    const blob = new Blob([fullHtml], { type: 'application/vnd.ms-excel' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Шахматка_${section.number}.xls`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div id="chessboard_root" className="space-y-6">
-      
-      {/* Шапка управления Шахматкой */}
-      <div id="chessboard_toolbar" className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-900 text-white rounded-xl shadow-md border border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-slate-800 rounded-lg text-slate-300">
-            <LayoutGrid className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold tracking-tight text-white uppercase font-mono">{section.number} — Сводная Шахматка</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Визуализация хода согласования комплектов документов на этажах</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
+        {/* Переключатель Проект / Рекламации */}
+        <div id="layer_mode_selector" className="flex items-center gap-2.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
           <button
-            onClick={exportToExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-bold transition-all shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            Excel
-          </button>
-
-          {/* Переключатель Проект / Рекламации */}
-          <div id="layer_mode_selector" className="flex items-center gap-2.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
-            <button
             type="button"
             onClick={() => setMode('project')}
             className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
