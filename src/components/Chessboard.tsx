@@ -165,6 +165,21 @@ export default function Chessboard({ section, workTypes, tasks, onSelectTask, on
     }
   };
 
+  return (
+    <div id="chessboard_root" className="space-y-6">
+      
+      {/* Шапка управления Шахматкой */}
+      <div id="chessboard_toolbar" className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-900 text-white rounded-xl shadow-md border border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-slate-800 rounded-lg text-slate-300">
+            <LayoutGrid className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold tracking-tight text-white uppercase font-mono">{section.number} — Сводная Шахматка</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Визуализация хода согласования комплектов документов на этажах</p>
+          </div>
+        </div>
+
         {/* Переключатель Проект / Рекламации */}
         <div id="layer_mode_selector" className="flex items-center gap-2.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
           <button

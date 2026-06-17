@@ -96,10 +96,10 @@ export interface Task {
     houseName: string;
     sectionId: string;
     sectionNumber: string;
-    floorNumber: number;
-    roomId: string;
-    roomName: string;
-    roomType: RoomType;
+    floorNumber?: number;
+    roomId?: string;
+    roomName?: string;
+    roomType?: RoomType;
   } | null;
   workTypeId: string; // Ссылка на справочник работ (для main и reclamation)
   workTypeName: string; // Денормализованное имя для удобства
