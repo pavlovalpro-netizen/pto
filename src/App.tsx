@@ -1427,7 +1427,7 @@ export default function App() {
           currentUser={currentUser}
           onClose={() => setSelectedTask(null)}
           onUpdate={handleTaskUpdated}
-          onDelete={isDirector ? handleTaskDeleted : undefined}
+          onDelete={handleTaskDeleted}
         />
       )}
 

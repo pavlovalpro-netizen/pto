@@ -90,7 +90,23 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
     parseGeneralComments(task.generalComment || '')
   );
 
-  const handleAddGeneralComment = () => {
+  const saveGeneralCommentsToBackend = async (newList: GeneralCommentItem[]) => {
+    try {
+      await fetch('/api/tasks/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taskId: task.id,
+          generalComment: JSON.stringify(newList),
+          userRole: currentUser.role,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to auto-save general comment:', err);
+    }
+  };
+
+  const handleAddGeneralComment = async () => {
     if (!newGeneralCommentText.trim()) return;
     const newItem: GeneralCommentItem = {
       id: 'gcomm_' + Math.random().toString(36).substring(2, 9),
@@ -107,12 +123,14 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
     setGeneralCommentsList(updatedList);
     setNewGeneralCommentText('');
     setGeneralComment(JSON.stringify(updatedList));
+    await saveGeneralCommentsToBackend(updatedList);
   };
 
-  const handleRemoveGeneralComment = (commentId: string) => {
+  const handleRemoveGeneralComment = async (commentId: string) => {
     const updatedList = generalCommentsList.filter(item => item.id !== commentId);
     setGeneralCommentsList(updatedList);
     setGeneralComment(JSON.stringify(updatedList));
+    await saveGeneralCommentsToBackend(updatedList);
   };
   
   // Чат по конкретному документу
