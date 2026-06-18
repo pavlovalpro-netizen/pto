@@ -595,6 +595,30 @@ export default function App() {
     }
   };
 
+  const handleResetPasswordToDefault = async (email: string) => {
+    if (!window.confirm('Сбросить пароль этого пользователя на 123456?')) return;
+    
+    setTeamError(null);
+    try {
+      const resp = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          newPassword: '123456',
+          isMasterAccess: true,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.error || 'Ошибка при сбросе пароля');
+      }
+      alert('Пароль успешно сброшен на 123456');
+    } catch (err: any) {
+      setTeamError(err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div id="app_loading_screen" className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0f1115] text-white">
@@ -697,7 +721,7 @@ export default function App() {
               <ClipboardCheck className="w-8 h-8" />
             </div>
             <h2 className="text-xl font-bold text-white">Приглашение инженера ПТО</h2>
-            <p className="text-xs text-slate-400 font-mono">Регистрация и привязка аккаунта в ООО "Ал-Про"</p>
+            <p className="text-xs text-slate-400 font-mono">Регистрация и привязка аккаунта в {state?.companyName || 'ООО "Ал-Про"'}</p>
           </div>
 
           {inviteSuccess ? (
@@ -1054,40 +1078,21 @@ export default function App() {
               
               <div className="space-y-1">
                 <span className="text-xs font-bold text-gray-400">Выберите профиль из шаблона:</span>
-                <div className="grid grid-cols-1 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSwapperName('Павлов А.Л. (Начальник ПТО)');
-                      setSwapperEmail('pavlov.alpro@gmail.com');
-                      setSwapperRole('director');
-                    }}
-                    className="p-2 text-left bg-white/5 hover:bg-white/10 text-xs rounded border border-white/5 block font-semibold text-white transition-colors"
-                  >
-                    Павлов А.Л. (Начальник ПТО, директор)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSwapperName('Иванов И.И. (Инженер ПТО)');
-                      setSwapperEmail('engineer1@al-pro.ru');
-                      setSwapperRole('engineer');
-                    }}
-                    className="p-2 text-left bg-white/5 hover:bg-white/10 text-xs rounded border border-white/5 block font-semibold text-white transition-colors"
-                  >
-                    Иванов И.И. (Инженер ПТО)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSwapperName('Петров П.П. (Инженер ПТО)');
-                      setSwapperEmail('engineer2@al-pro.ru');
-                      setSwapperRole('engineer');
-                    }}
-                    className="p-2 text-left bg-white/5 hover:bg-white/10 text-xs rounded border border-white/5 block font-semibold text-white transition-colors"
-                  >
-                    Петров П.П. (Инженер ПТО)
-                  </button>
+                <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                  {state.users.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        setSwapperName(u.name);
+                        setSwapperEmail(u.email);
+                        setSwapperRole(u.role);
+                      }}
+                      className="p-2 text-left bg-white/5 hover:bg-white/10 text-xs rounded border border-white/5 block font-semibold text-white transition-colors"
+                    >
+                      {u.name} {u.role === 'director' ? '(Директор)' : ''}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1453,6 +1458,14 @@ export default function App() {
                                      </td>
                                      <td className="p-4 px-6 text-center">
                                        <div className="flex items-center justify-center gap-2">
+                                         <button
+                                           type="button"
+                                           onClick={() => handleResetPasswordToDefault(u.email)}
+                                           className="px-3 py-1 bg-white/5 hover:bg-orange-500/20 border border-white/10 hover:border-orange-500/30 rounded text-xs text-gray-300 hover:text-orange-400 font-semibold transition-all"
+                                           title="Сбросить пароль на 123456"
+                                         >
+                                           Сброс пароля
+                                         </button>
                                          <button
                                            type="button"
                                            onClick={() => {
