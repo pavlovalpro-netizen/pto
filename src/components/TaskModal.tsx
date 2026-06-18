@@ -856,9 +856,9 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
         {/* Футер модалки */}
         <div id="task_modal_footer" className="px-6 py-4 bg-[#0d1117] border-t border-white/10 flex flex-col sm:flex-row sm:justify-between items-center gap-3">
           
-          {/* Удаление доступно только Начальнику ПТО */}
+          {/* Удаление доступно Начальнику ПТО или всем для личных задач */}
           <div className="self-start sm:self-center">
-            {isDirector && onDelete && (
+            {(isDirector || task.type === 'general') && onDelete && (
               !showTaskDeleteConfirm ? (
                 <button
                   id="task_delete_btn"

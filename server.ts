@@ -1359,11 +1359,16 @@ async function startServer() {
       const { taskId, userRole } = req.body;
       if (!taskId) return res.status(400).json({ error: 'ID задачи отсутствует' });
 
-      if (userRole !== 'director') {
-        return res.status(403).json({ error: 'У вас нет прав на удаление задачи. Только Начальник ПТО может удалять задачи' });
+      const state = ServerDB.get();
+      const taskToDelete = state.tasks.find((t) => t.id === taskId);
+      if (!taskToDelete) {
+        return res.status(404).json({ error: 'Задача не найдена' });
       }
 
-      const state = ServerDB.get();
+      if (userRole !== 'director' && taskToDelete.type !== 'general') {
+        return res.status(403).json({ error: 'У вас нет прав на удаление этой задачи. Инженеры могут удалять только личные задачи.' });
+      }
+
       state.tasks = state.tasks.filter((t) => t.id !== taskId);
       ServerDB.save(state);
 
