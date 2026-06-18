@@ -833,9 +833,12 @@ export default function App() {
               <div className="p-2 bg-orange-600 rounded-lg text-white shrink-0 shadow-md shadow-orange-950/30 animate-pulse">
                 <Building2 className="w-5.5 h-5.5" />
               </div>
-              <div className="min-w-0">
-                <span className="text-sm font-bold tracking-tight text-white block">СТРОИТЕЛЬНЫЙ КОНТРОЛЬ ПТО</span>
-                <span className="text-[10px] text-gray-400 font-mono tracking-widest font-semibold block uppercase">{state?.companyName || 'ООО "Ал-Про"'}</span>
+              <div className="min-w-0 flex items-center">
+                <div>
+                  <span className="text-sm font-bold tracking-tight text-white block">СТРОИТЕЛЬНЫЙ КОНТРОЛЬ ПТО</span>
+                  <span className="text-[10px] text-gray-400 font-mono tracking-widest font-semibold block uppercase">{state?.companyName || 'ООО "Ал-Про"'}</span>
+                </div>
+                <span className="ml-3 px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-[10px] font-bold rounded font-mono border border-orange-500/30">v1.1</span>
               </div>
             </div>
 
