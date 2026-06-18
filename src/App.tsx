@@ -90,11 +90,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // Быстрый переключатель в демо для ручной оценки разных ролей
-  const [showUserSwapper, setShowUserSwapper] = useState(false);
-  const [swapperName, setSwapperName] = useState('Иванов И.И. (Инженер ПТО)');
-  const [swapperEmail, setSwapperEmail] = useState('engineer1@al-pro.ru');
-  const [swapperRole, setSwapperRole] = useState<'director' | 'engineer'>('engineer');
+
 
   // Модалка настроек профиля и компании
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -436,33 +432,7 @@ export default function App() {
     setTimeout(() => setCopiedToken(null), 1500);
   };
 
-  // Создание / Переключение профиля в демке для удобства
-  const handleSwitchUserInDemo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/users/switch-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: swapperName,
-          email: swapperEmail,
-          role: swapperRole,
-        }),
-      });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      // Мастер-доступ: мы меняем currentUser, но НЕ меняем localStorage
-      // Таким образом, при F5 директор вернется в свой аккаунт
-      setCurrentUser(data.user);
-      setActiveTab(data.user.role === 'director' ? 'chessboard' : 'tasks');
-      setShowUserSwapper(false);
-      await loadState(true);
-    } catch (err: any) {
-      setErrorMsg(err.message);
-    }
-  };
 
   // Сохранение настроек собственного профиля + компании
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -885,17 +855,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Переключатель аккаунтов (Мастер-доступ Начальника) */}
-              {isDirector && (
-                <button
-                  id="demo_swapper_btn"
-                  type="button"
-                  onClick={() => setShowUserSwapper(!showUserSwapper)}
-                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg shadow-md shadow-orange-950/20 transition-all flex items-center gap-1 shrink-0"
-                >
-                  <span>Войти как инженер</span>
-                </button>
-              )}
 
               {/* Настройки профиля и компании */}
               {currentUser && (
@@ -1067,100 +1026,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Быстрый переключатель в демо-режиме (Модалка) */}
-      {showUserSwapper && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <form
-            onSubmit={handleSwitchUserInDemo}
-            className="bg-[#161b22] border border-white/10 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-gray-300"
-          >
-            <div className="p-4 bg-[#0d1117] border-b border-white/10 text-white flex justify-between items-center">
-              <span className="text-xs font-bold uppercase tracking-wider font-mono">Песочница: Быстрая смена пользователя</span>
-              <button type="button" onClick={() => setShowUserSwapper(false)} className="text-gray-400 hover:text-white text-lg">×</button>
-            </div>
-            
-            <div className="p-5 space-y-3.5">
-              <p className="text-xs text-gray-400 font-mono">Меняйте роли для проверки разграничения прав Начальника / Инженера на лету.</p>
-              
-              <div className="space-y-1">
-                <span className="text-xs font-bold text-gray-400">Выберите профиль из шаблона:</span>
-                <div className="grid grid-cols-1 gap-1.5 max-h-40 overflow-y-auto pr-1">
-                  {state.users.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => {
-                        setSwapperName(u.name);
-                        setSwapperEmail(u.email);
-                        setSwapperRole(u.role);
-                      }}
-                      className="p-2 text-left bg-white/5 hover:bg-white/10 text-xs rounded border border-white/5 block font-semibold text-white transition-colors"
-                    >
-                      {u.name} {u.role === 'director' ? '(Директор)' : ''}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-white/10 my-2 pt-2 space-y-2">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-mono block">Или задайте вручную:</span>
-
-                <div className="space-y-1">
-                  <span className="text-[11px] text-gray-400">ФИО:</span>
-                  <input
-                    type="text"
-                    required
-                    value={swapperName}
-                    onChange={(e) => setSwapperName(e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-white/10 bg-[#0d1117] text-white rounded focus:border-orange-500 outline-none"
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <span className="text-[11px] text-gray-400 font-mono">Email Google:</span>
-                  <input
-                    type="email"
-                    required
-                    value={swapperEmail}
-                    onChange={(e) => setSwapperEmail(e.target.value)}
-                    className="w-full text-xs px-2.5 py-1.5 border border-white/10 bg-[#0d1117] text-white rounded font-mono focus:border-orange-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-[11px] text-gray-400">Ролевая группа ПТО:</span>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="radio" checked={swapperRole === 'director'} onChange={() => setSwapperRole('director')} className="accent-orange-500" />
-                      <span className="text-xs">Начальник ПТО</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <input type="radio" checked={swapperRole === 'engineer'} onChange={() => setSwapperRole('engineer')} className="accent-orange-500" />
-                      <span className="text-xs">Инженер ПТО</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#0d1117] border-t border-white/10 flex justify-end gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setShowUserSwapper(false)}
-                className="px-3 py-1.5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 rounded"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow-md"
-              >
-                Установить в сессию
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* ОШИБКА ПОДКЛЮЧЕНИЯ */}
       {errorMsg && (
