@@ -223,17 +223,23 @@ export default function App() {
     }
   }, [newNotificationToast]);
 
-  // Периодический опрос уведомлений раз в 4 секунды
+  // Подключение к SSE потоку для мгновенных обновлений
   useEffect(() => {
     if (!currentUser?.email) return;
 
     fetchNotifications(currentUser.email);
 
-    const intv = setInterval(() => {
-      fetchNotifications(currentUser.email);
-    }, 4000);
+    const sse = new EventSource('/api/stream');
+    sse.onmessage = (e) => {
+      if (e.data === 'update') {
+        loadState();
+        fetchNotifications(currentUser.email);
+      }
+    };
 
-    return () => clearInterval(intv);
+    return () => {
+      sse.close();
+    };
   }, [currentUser?.email]);
 
   const handleMarkNotificationRead = async (id: string) => {
@@ -416,7 +422,7 @@ export default function App() {
         setInviteToken(null);
         setInviteSuccess(false);
         loadState(true);
-      }, 1500);
+      }, 400);
 
     } catch (err: any) {
       setInviteError(err.message);

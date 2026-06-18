@@ -6,7 +6,7 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { ServerDB } from './server/db.ts';
+import { ServerDB, dbEvents } from './server/db.ts';
 import { Task, TaskChecklistItem, TaskComment, Room, Section, Invite, User, RoomType, TaskType, PTONotification } from './src/types.ts';
 
 function padZero(n: number): string {
@@ -1827,6 +1827,23 @@ async function startServer() {
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  // 22. SSE поток для мгновенного обновления в браузере
+  app.get('/api/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const onUpdate = () => {
+      res.write('data: update\n\n');
+    };
+    dbEvents.on('update', onUpdate);
+
+    req.on('close', () => {
+      dbEvents.off('update', onUpdate);
+    });
   });
 
   // ПОДКЛЮЧЕНИЕ VITE ИЛИ СТАТИЧЕСКИХ ФАЙЛОВ

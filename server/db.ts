@@ -5,7 +5,10 @@
 
 import fs from 'fs';
 import path from 'path';
+import { EventEmitter } from 'events';
 import { AppState, ConstructionObject, House, Section, WorkType, Task, User, Invite, RoomType, TaskType, Room, Floor } from '../src/types.ts';
+
+export const dbEvents = new EventEmitter();
 
 const DB_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DB_DIR, 'db.json');
@@ -667,6 +670,7 @@ export class ServerDB {
         fs.mkdirSync(DB_DIR, { recursive: true });
       }
       fs.writeFileSync(DB_PATH, JSON.stringify(this.state, null, 2), 'utf-8');
+      dbEvents.emit('update');
     } catch (e) {
       console.error('Error writing to db.json: ', e);
     }
