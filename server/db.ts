@@ -588,7 +588,7 @@ export class ServerDB {
         // Автоматически устанавливаем пароль "123456" всем пользователям, у которых его еще нет
         let updatedPasswords = false;
         for (const user of this.state.users) {
-          if (!user.password) {
+          if (!user.password || user.password === 'admin' || user.password === 'user') {
             user.password = '123456';
             updatedPasswords = true;
           }
@@ -615,21 +615,21 @@ export class ServerDB {
         name: 'Павлов М.Н. (Начальник ПТО)',
         email: 'pavlov.alpro@gmail.com',// Из метаданных запроса
         role: 'director',
-        password: 'admin',
+        password: '123456',
       },
       {
         id: 'user_engineer1',
         name: 'Иванов И.И. (Инженер ПТО)',
         email: 'engineer1@al-pro.ru',
         role: 'engineer',
-        password: 'user',
+        password: '123456',
       },
       {
         id: 'user_engineer2',
         name: 'Петров П.П. (Инженер ПТО)',
         email: 'engineer2@al-pro.ru',
         role: 'engineer',
-        password: 'user',
+        password: '123456',
       },
     ];
 
