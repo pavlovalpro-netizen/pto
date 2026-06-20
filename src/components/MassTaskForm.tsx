@@ -41,7 +41,7 @@ export default function MassTaskForm({
   
   // Область действия (Filter Domain)
   const [selectionScope, setSelectionScope] = useState<'all' | 'apartments' | 'mop' | 'manual'>('all');
-  const [mopType, setMopType] = useState<RoomType>('ЛХ');
+  const [selectedMopTypes, setSelectedMopTypes] = useState<RoomType[]>([]);
   const [manualRoomIds, setManualRoomIds] = useState<string[]>([]);
   
   // Фильтрация этажей
@@ -268,6 +268,7 @@ export default function MassTaskForm({
             driveFolderUrl,
             reclamationCause: 'Личная задача',
             reclamationDescription: reclamationDescription || 'Личная задача (блокнот).',
+            creatorEmail: currentUser.email,
           }),
         });
 
@@ -290,9 +291,10 @@ export default function MassTaskForm({
             houseId,
             sectionIds: selectedSectionIds,
             selectionScope,
-            mopType,
+            mopTypes: selectedMopTypes,
             manualRooms: manualRoomIds,
             workTypeId,
+            creatorEmail: currentUser.email,
             executorEmail,
             deadline,
             driveFolderUrl,
@@ -320,8 +322,11 @@ export default function MassTaskForm({
     }
   };
 
-  const MOP_OPTIONS = ALL_ROOM_TYPES.filter((t) => t !== 'Квартира' && t !== 'Коммерция');
-
+  const selectedWorkType = workTypes.find(wt => wt.id === workTypeId);
+  const MOP_OPTIONS = ALL_ROOM_TYPES.filter((t) => 
+    t !== 'Квартира' && t !== 'Коммерция' && 
+    (!selectedWorkType || selectedWorkType.applicableEntityTypes.includes(t))
+  );
   return (
     <div className="fixed inset-0 z-45 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
       <div className="relative w-full max-w-3xl bg-[#161b22] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col my-8 max-h-[92vh]">
@@ -619,7 +624,7 @@ export default function MassTaskForm({
                       onClick={() => setSelectionScope('mop')}
                       className={`p-2.5 border rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer text-center select-none transition-all ${selectionScope === 'mop' ? 'bg-[#1f2937] border-orange-500 text-white shadow' : 'bg-[#161b22] border-white/10 text-gray-300 hover:bg-white/5'}`}
                     >
-                      <span className="text-xs font-bold leading-normal">Конкретный МОП</span>
+                      <span className="text-xs font-bold leading-normal">МОП</span>
                       <span className="text-[9px] opacity-75 leading-none font-mono">Шахты/Холл/Тамбур</span>
                     </div>
 
@@ -634,17 +639,30 @@ export default function MassTaskForm({
 
                   {/* Дополнительный селектор МОП */}
                   {selectionScope === 'mop' && (
-                    <div className="p-3 bg-[#161b22] border border-white/10 rounded-lg space-y-1.5 max-w-sm">
-                      <span className="text-xs text-gray-400 font-medium">Выберите тип помещения МОП</span>
-                      <select
-                        value={mopType}
-                        onChange={(e) => setMopType(e.target.value as RoomType)}
-                        className="w-full text-xs px-2.5 py-1.5 bg-[#0d1117] border border-white/10 rounded-md text-white outline-none font-mono"
-                      >
+                    <div className="p-3 bg-[#161b22] border border-white/10 rounded-lg space-y-2 max-w-sm">
+                      <span className="text-xs text-gray-400 font-medium">Выберите типы помещений МОП</span>
+                      <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-2">
                         {MOP_OPTIONS.map((t) => (
-                          <option key={t} value={t} className="bg-[#161b22]">{t}</option>
+                          <label key={t} className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={selectedMopTypes.includes(t as RoomType)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedMopTypes([...selectedMopTypes, t as RoomType]);
+                                } else {
+                                  setSelectedMopTypes(selectedMopTypes.filter(m => m !== t));
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-gray-600 text-orange-500 focus:ring-orange-500/20 bg-[#0d1117]"
+                            />
+                            <span className="text-xs text-gray-300 group-hover:text-white transition-colors">{t}</span>
+                          </label>
                         ))}
-                      </select>
+                        {MOP_OPTIONS.length === 0 && (
+                          <span className="text-[10px] text-gray-500 italic">Нет доступных типов МОП для выбранного вида работ.</span>
+                        )}
+                      </div>
                     </div>
                   )}
 

@@ -393,6 +393,11 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
                 {task.location.objectName} ➔ {task.location.houseName} ➔ {task.location.sectionNumber} ➔ Этаж {task.location.floorNumber} ➔ {task.location.roomName} ({task.location.roomType})
               </p>
             )}
+            {task.createdAt && (
+              <p className="text-[10px] text-gray-500 font-mono mt-1">
+                Дата создания: {new Date(task.createdAt).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
           <button 
             id="close_task_modal_btn"
@@ -600,7 +605,7 @@ export default function TaskModal({ task, users, currentUser, onClose, onUpdate,
                 id="task_deadline_input"
                 type="date"
                 value={deadline}
-                disabled={!isDirector && task.status === 7} // Блокировка изменений для закрытых не-директором
+                disabled={(!isDirector && task.status === 7) || (!isDirector && task.creatorEmail !== currentUser.email)} // Блокировка изменений для закрытых не-директором, а также для чужих задач
                 onChange={(e) => setDeadline(e.target.value)}
                 className="w-full px-3 py-2 bg-[#0d1117] border border-white/10 rounded-lg text-xs text-white focus:border-orange-500 outline-none font-medium font-mono"
               />
