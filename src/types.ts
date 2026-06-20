@@ -114,7 +114,6 @@ export interface Task {
   statusComments?: string; // Большое текстовое поле «Текст замечания» при статусе 5 (Замечания технадзора)
   generalComment?: string; // Большое текстовое поле для общего комментария в карточке задачи после чек-листа
   createdAt: string;
-  creatorEmail?: string;
 }
 
 export interface User {

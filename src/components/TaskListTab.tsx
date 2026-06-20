@@ -202,7 +202,6 @@ export default function TaskListTab({
           driveFolderUrl: formDriveUrl,
           reclamationCause: formType === 'reclamation' ? formRecCause : undefined,
           reclamationDescription: formType !== 'main' ? formRecDesc : undefined,
-          creatorEmail: currentUser.email,
         }),
       });
 

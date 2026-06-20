@@ -494,10 +494,9 @@ async function startServer() {
         houseId,
         sectionIds,      // массив ID секций
         selectionScope,  // 'all' | 'apartments' | 'mop' | 'manual'
-        mopTypes,        // массив выбранных типов МОП
+        mopType,         // конкретный тип МОП, например 'ЛХ'
         manualRooms,     // список Room ID при 'manual'
         workTypeId,
-        creatorEmail,    // email создателя задачи
         executorEmail,   // email исполнителя
         deadline,
         driveFolderUrl,  // URL общей папки
@@ -571,7 +570,6 @@ async function startServer() {
           checklist,
           reclamationDescription: reclamationDescription || 'Личное / общее поручение',
           createdAt: new Date().toISOString(),
-          creatorEmail: req.body.creatorEmail,
         };
 
         state.tasks.push(newTask);
@@ -616,8 +614,6 @@ async function startServer() {
       let countCreated = 0;
       let countSkippedDueToMatrix = 0;
 
-      const scopeSuffix = selectionScope === 'apartments' ? ' (Квартиры)' : (selectionScope === 'mop' && Array.isArray(mopTypes)) ? ` (МОП: ${mopTypes.join(', ')})` : '';
-
       // Проходимся по каждой выбранной секции
       sectionIds.forEach((secId: string) => {
         const sec = state.sections.find((s) => s.id === secId);
@@ -645,7 +641,7 @@ async function startServer() {
               } else if (selectionScope === 'apartments') {
                 matchesScope = room.type === 'Квартира';
               } else if (selectionScope === 'mop') {
-                matchesScope = Array.isArray(mopTypes) && mopTypes.includes(room.type);
+                matchesScope = room.type === mopType;
               } else if (selectionScope === 'manual') {
                 matchesScope = manualRooms?.includes(room.id);
               }
@@ -699,7 +695,7 @@ async function startServer() {
               sectionNumber: sec.number,
               floorNumber: undefined, // Секционная задача не привязана к конкретному этажу
               roomId: undefined,
-              roomName: `Все этажи секции ${sec.number}${scopeSuffix}`,
+              roomName: `Все этажи секции ${sec.number}`,
               roomType: undefined,
             },
             workTypeId,
@@ -711,7 +707,6 @@ async function startServer() {
             driveFolderUrl: driveFolderUrl || '',
             checklist,
             createdAt: new Date().toISOString(),
-            creatorEmail,
           };
 
           if (type === 'reclamation') {
@@ -803,7 +798,7 @@ async function startServer() {
                 sectionNumber: sec.number,
                 floorNumber: isTypical ? undefined : groupFloors[0]?.floorNumber,
                 roomId: undefined,
-                roomName: `${nameSuffix}${scopeSuffix}`,
+                roomName: nameSuffix,
                 roomType: undefined,
               },
               workTypeId,
@@ -815,7 +810,6 @@ async function startServer() {
               driveFolderUrl: driveFolderUrl || '',
               checklist,
               createdAt: new Date().toISOString(),
-              creatorEmail,
             };
 
             if (type === 'reclamation') {
@@ -915,7 +909,7 @@ async function startServer() {
                 sectionNumber: sec.number,
                 floorNumber: fl.floorNumber,
                 roomId: undefined,
-                roomName: `Все помещения этажа${scopeSuffix}`,
+                roomName: `Все помещения этажа`,
                 roomType: undefined,
               },
               workTypeId,
@@ -927,7 +921,6 @@ async function startServer() {
               driveFolderUrl: driveFolderUrl || '',
               checklist,
               createdAt: new Date().toISOString(),
-              creatorEmail,
             };
 
             if (type === 'reclamation') {
@@ -1020,7 +1013,6 @@ async function startServer() {
                   driveFolderUrl: driveFolderUrl || '',
                   checklist,
                   createdAt: new Date().toISOString(),
-                  creatorEmail,
                 };
 
                 if (type === 'reclamation') {
@@ -1074,7 +1066,6 @@ async function startServer() {
         driveFolderUrl,
         reclamationCause,
         reclamationDescription,
-        creatorEmail,
       } = req.body;
 
       if (!type || !executorEmail) {
@@ -1162,7 +1153,6 @@ async function startServer() {
         driveFolderUrl: driveFolderUrl || '',
         checklist,
         createdAt: new Date().toISOString(),
-        creatorEmail,
       };
 
       if (type === 'reclamation') {
